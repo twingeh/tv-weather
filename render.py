@@ -133,6 +133,11 @@ if not PREVIEW:
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", str(OUT / "frames" / "f%04d.png"),
                     "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "24", "-preset", "slow",
                     "-movflags", "+faststart", str(OUT / "wall.mp4")], check=True)
+    stamp = cur["time"].replace(":", "").replace("-", "")
+    base = "https://twingeh.github.io/tv-weather/"
+    (OUT / "videos.json").write_text(json.dumps([{
+        "location": "Москва", "title": f"Погода {cur['time']}", "author": "Open-Meteo",
+        "url_img": f"{base}wall.png?v={stamp}", "url_1080p": f"{base}wall.mp4?v={stamp}"}], ensure_ascii=False), encoding="utf-8")
     (OUT / "index.html").write_text('<!doctype html><meta charset="utf-8"><title>tv-weather</title>'
         f'<p>Обновлено: {cur["time"]} (Москва). <a href="wall.mp4">wall.mp4</a> · <a href="wall.png">wall.png</a></p>', encoding="utf-8")
 print("ok", kind, "day" if day else "night", cur["temperature_2m"])
