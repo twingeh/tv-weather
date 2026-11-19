@@ -124,6 +124,7 @@ body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;
 .city{{font-size:56px;font-weight:650;letter-spacing:-.01em}}
 .date{{font-size:30px;font-weight:450;opacity:.88;margin-top:4px}}
 .temp{{font-size:240px;font-weight:250;line-height:.9;letter-spacing:-.045em;margin-top:18px}}
+.temp .deg{{font-size:.5em;vertical-align:.62em;margin-left:.04em;letter-spacing:0}}
 .cond{{display:flex;align-items:center;gap:14px;font-size:36px;font-weight:550;margin-top:8px}}
 .hl{{font-size:30px;font-weight:450;opacity:.88;margin-top:6px}}
 h2{{margin:0 0 4px;font-size:22px;font-weight:600;opacity:.8}}
@@ -136,7 +137,7 @@ ul{{list-style:none;margin:0;padding:0}}
 .days i{{display:inline-block;width:60px;height:5px;border-radius:3px;background:#f2c879}}
 </style></head><body><div class="scrim"></div>
 <div class="b hero"><div class="city">Москва</div><div class="date">{WD[now.weekday()].capitalize()}, {now.day} {MONTHS[now.month-1]}</div>
- <div class="temp">{tm(cur['temperature_2m'])}</div><div class="cond">{icon(ic,80)}{desc}</div>
+ <div class="temp">{tm(cur['temperature_2m'])[:-1]}<span class="deg">°</span></div><div class="cond">{icon(ic,80)}{desc}</div>
  <div class="hl">Макс. {tm(d['daily']['temperature_2m_max'][0])} · мин. {tm(d['daily']['temperature_2m_min'][0])}</div></div>
 <div class="b hours"><h2>Сегодня</h2><ul>{hrs_html}</ul></div>
 <div class="b days"><h2>Дальше</h2><ul>{days_html}</ul></div>
