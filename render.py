@@ -14,17 +14,37 @@ CACHE = HERE / ".clips"; CACHE.mkdir(exist_ok=True)
 W, H = 1920, 1080
 BASE = "https://twingeh.github.io/tv-weather/"
 
-# Клипы Mixkit (Free License). Для дождя у Mixkit другой путь к файлу.
-CLIPS = {
-    "rain":   ("99839", "https://assets.mixkit.co/active_storage/video_items/99839/1717104607/99839-video-1080.mp4"),
-    "snow":   ("3352",  "https://assets.mixkit.co/videos/3352/3352-1080.mp4"),
-    "clear":  ("51102", "https://assets.mixkit.co/videos/51102/51102-1080.mp4"),
-    "partly": ("26108", "https://assets.mixkit.co/videos/26108/26108-1080.mp4"),
-    "cloudy": ("118",   "https://assets.mixkit.co/videos/118/118-1080.mp4"),
-    "fog":    ("50936", "https://assets.mixkit.co/videos/50936/50936-1080.mp4"),
-    "storm":  ("4422",  "https://assets.mixkit.co/videos/4422/4422-1080.mp4"),
-    "night":  ("4433",  "https://assets.mixkit.co/videos/4433/4433-1080.mp4"),
+# Клипы Mixkit (Free License). У части клипов бесплатно открыт только 720p — тогда берётся он.
+def mx(i): return [f"https://assets.mixkit.co/videos/{i}/{i}-1080.mp4", f"https://assets.mixkit.co/videos/{i}/{i}-720.mp4"]
+SRC = {
+    "99839": ["https://assets.mixkit.co/active_storage/video_items/99839/1717104607/99839-video-1080.mp4"],
+    "99841": ["https://assets.mixkit.co/active_storage/video_items/99841/1717105845/99841-video-1080.mp4"],
 }
+# Пулы по погоде и времени суток; внутри пула ролик меняется раз в 3 часа.
+POOLS = {
+    ("rain", 1): ["99839"],                    ("rain", 0): ["99841", "20727", "21144"],
+    ("snow", 1): ["3352", "26471", "3323"],    ("snow", 0): ["8353", "27439", "27776"],
+    ("blizzard", 1): ["29453"],                ("blizzard", 0): ["27377"],
+    ("thaw", 1): ["15404"],                    ("thaw", 0): ["99841", "20727", "21144"],
+    ("cloudy", 1): ["118", "9680"],            ("cloudy", 0): ["15711", "12025"],
+    ("fog", 1): ["50936"],                     ("fog", 0): ["9678"],
+    ("clear", 1): ["51102"],                   ("clear", 0): ["4433", "34873"],
+    ("partly", 1): ["26108"],                  ("partly", 0): ["4433", "34873"],
+    ("frost", 1): ["47459", "8146"],           ("frost", 0): ["34873"],
+    ("storm", 1): ["4422"],                    ("storm", 0): ["4422"],
+}
+
+def scene(kind, code, temp, wind):
+    """Погода для подбора ролика: базовый вид + редкие случаи."""
+    if code in (56, 57, 66, 67): return "thaw"                    # ледяной дождь / морось
+    if kind == "snow" and wind >= 9: return "blizzard"           # снег с ветром от 9 м/с
+    if kind == "snow" and temp >= 1: return "thaw"               # мокрый снег в оттепель
+    if kind in ("clear", "partly") and temp <= -15: return "frost"
+    return kind
+
+def pick(sc, day, now):
+    pool = POOLS[(sc, int(day))]
+    return pool[(now.timetuple().tm_yday * 8 + now.hour // 3) % len(pool)]
 
 URL = ("https://api.open-meteo.com/v1/forecast?latitude=55.7558&longitude=37.6173"
        "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
@@ -58,7 +78,9 @@ def tm(v): return t(v).replace("-", "−")
 cur = d["current"]; now = datetime.datetime.fromisoformat(cur["time"])
 day = bool(cur.get("is_day", 1))
 ic, desc, kind = wmo(cur["weather_code"], day)
-clip_kind = "night" if (not day and kind in ("clear", "partly")) else kind
+sc = scene(kind, cur["weather_code"], cur["temperature_2m"], cur.get("wind_speed_10m", 0))
+clip_kind = f"{sc}/{'день' if day else 'ночь'}"
+cid = pick(sc, day, now)
 
 # ближайшие 12 часов с шагом в 2 часа
 hrs = []
@@ -127,11 +149,14 @@ with sync_playwright() as pw:
 if "--overlay" in sys.argv:
     print("overlay", kind, clip_kind); sys.exit()
 
-cid, curl = CLIPS[clip_kind]
 src = CACHE / f"{cid}.mp4"
 if not src.exists():
-    req = urllib.request.Request(curl, headers={"User-Agent": "Mozilla/5.0"})
-    src.write_bytes(urllib.request.urlopen(req, timeout=300).read())
+    for u in SRC.get(cid, mx(cid)):
+        try:
+            req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+            src.write_bytes(urllib.request.urlopen(req, timeout=300).read()); break
+        except Exception as e:
+            print("нет", u, e)
 
 dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(src)],
                            capture_output=True, text=True, check=True).stdout.strip())
@@ -168,4 +193,4 @@ for n in list(keep):
     "url_1080p": f"{BASE}wall_{stamp}.mp4"}], ensure_ascii=False, indent=2), encoding="utf-8")
 (OUT / "index.html").write_text('<!doctype html><meta charset="utf-8"><title>tv-weather</title>'
     f'<p>Обновлено: {cur["time"]} (Москва), {desc}. <a href="wall.mp4">wall.mp4</a> · <a href="videos.json">videos.json</a></p>', encoding="utf-8")
-print("ok", kind, clip_kind, cur["temperature_2m"])
+print("ok", clip_kind, cid, cur["temperature_2m"])
