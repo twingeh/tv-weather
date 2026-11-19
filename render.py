@@ -150,6 +150,19 @@ stamp = cur["time"].replace(":", "").replace("-", "")
 # Overflight узнаёт видео по окончанию ссылки: дата — в имени файла, не в ?query
 import shutil
 shutil.copy(OUT / "wall.mp4", OUT / f"wall_{stamp}.mp4")
+# Pages при каждой сборке заменяет сайт целиком, а Overflight держит старую ссылку до часа.
+# Поэтому три прошлых ролика переносим в новую сборку: старая ссылка живёт ещё ~1,5 часа.
+try:
+    keep = json.loads(urllib.request.urlopen(BASE + "keep.json", timeout=20).read())
+except Exception:
+    keep = []
+keep = [n for n in keep if n != f"wall_{stamp}.mp4"][-3:]
+for n in list(keep):
+    try:
+        (OUT / n).write_bytes(urllib.request.urlopen(BASE + n, timeout=60).read())
+    except Exception:
+        keep.remove(n)
+(OUT / "keep.json").write_text(json.dumps(keep + [f"wall_{stamp}.mp4"]), encoding="utf-8")
 (OUT / "videos.json").write_text(json.dumps([{
     "location": "Москва", "title": f"{desc}, {tm(cur['temperature_2m'])}",
     "url_1080p": f"{BASE}wall_{stamp}.mp4"}], ensure_ascii=False, indent=2), encoding="utf-8")
