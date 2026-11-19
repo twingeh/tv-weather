@@ -121,7 +121,7 @@ body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;
  radial-gradient(70% 70% at 0% 0%,rgba(0,0,0,.35),rgba(0,0,0,0) 70%),
  linear-gradient(180deg,rgba(0,0,0,.64) 0%,rgba(0,0,0,.46) 34%,rgba(0,0,0,.30) 55%,rgba(0,0,0,.48) 70%,rgba(0,0,0,.74) 100%)}}
 .b{{position:absolute;text-shadow:0 1px 2px rgba(0,0,0,.45),0 2px 16px rgba(0,0,0,.5)}}
-.hero{{left:72px;top:84px;width:466px}} .hours{{left:500px;top:150px;height:292px;padding:22px 30px 18px}} .days{{left:1104px;top:150px;height:292px;padding:22px 30px 10px}}
+.hero{{left:72px;top:84px;width:466px}} .hours{{left:420px;top:150px;height:292px;padding:22px 30px 18px}} .days{{left:1024px;top:150px;height:292px;padding:22px 30px 10px}}
 /* стеклянные плашки, как у карточек приложений */
 .hours,.days{{box-sizing:border-box;background:rgba(255,255,255,.11);border:1.5px solid rgba(255,255,255,.26);border-radius:40px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 30px rgba(0,0,0,.18)}}
 .city{{font-size:56px;font-weight:650;letter-spacing:-.01em}}
