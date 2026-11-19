@@ -49,7 +49,7 @@ def pick(sc, day, now):
 
 URL = ("https://api.open-meteo.com/v1/forecast?latitude=55.7558&longitude=37.6173"
        "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
-       "&hourly=temperature_2m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min"
+       "&hourly=temperature_2m,weather_code,is_day,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min"
        "&forecast_days=4&timezone=Europe/Moscow&wind_speed_unit=ms")
 d = json.loads(urllib.request.urlopen(URL, timeout=30).read())
 
@@ -58,23 +58,30 @@ WD = "понедельник вторник среда четверг пятни
 WDS = "Пн Вт Ср Чт Пт Сб Вс".split()
 
 def wmo(code, day=True):
-    if code == 0: return ("sun" if day else "moon"), "Ясно", "clear"
-    if code in (1, 2): return ("cloud-sun" if day else "moon"), "Переменная облачность", "partly"
-    if code == 3: return "cloud", "Пасмурно", "cloudy"
-    if code in (45, 48): return "cloud-fog", "Туман", "fog"
-    if code in (51, 53, 55, 56, 57): return "cloud-rain", "Морось", "rain"
-    if code in (61, 63, 65, 66, 67, 80, 81, 82): return "cloud-rain", "Дождь", "rain"
-    if code in (71, 73, 75, 77, 85, 86): return "cloud-snow", "Снег", "snow"
-    if code in (95, 96, 99): return "cloud-lightning", "Гроза", "storm"
-    return "cloud", "Облачно", "cloudy"
+    """→ (иконка Meteocons, подпись, вид погоды для ролика)"""
+    if code == 0: return ("clear-day" if day else "clear-night"), "Ясно", "clear"
+    if code in (1, 2): return ("partly-cloudy-day" if day else "partly-cloudy-night"), "Переменная облачность", "partly"
+    if code == 3: return "overcast", "Пасмурно", "cloudy"
+    if code in (45, 48): return "fog", "Туман", "fog"
+    if code in (51, 53, 55): return "drizzle", "Морось", "rain"
+    if code in (56, 57): return "sleet", "Ледяная морось", "rain"
+    if code in (61, 63, 65, 80, 81, 82): return "rain", "Дождь", "rain"
+    if code in (66, 67): return "sleet", "Ледяной дождь", "rain"
+    if code in (71, 73, 75, 77, 85, 86): return "snow", "Снег", "snow"
+    if code in (95, 96, 99): return "thunderstorms", "Гроза", "storm"
+    return "overcast", "Облачно", "cloudy"
+
+METEO = json.loads((HERE / "meteocons.json").read_text())   # Meteocons monochrome, MIT
 
 def icon(name, size):
-    svg = (HERE / "icons" / f"{name}.svg").read_text()
-    return re.sub(r'\sfill="[^"]*"', "", svg).replace("<svg", f'<svg width="{size}" height="{size}" fill="currentColor"', 1)
+    # Meteocons monochrome (MIT); у значка широкие поля — обрезаем viewBox, чтобы рисунок был крупнее
+    svg = METEO[name]
+    return svg.replace('viewBox="0 0 128 128"', 'viewBox="14 14 100 100"').replace(
+        "<svg", f'<svg width="{size}" height="{size}" style="color:#fff;flex:none"', 1)
 
 def t(v):
-    r = round(v); return "0°" if r == 0 else f"{r}°"   # минус — типографский
-def tm(v): return t(v).replace("-", "−")
+    r = round(v); return "0°" if r == 0 else f"{r}°"
+def tm(v): return t(v).replace("-", "−")   # минус — типографский
 
 cur = d["current"]; now = datetime.datetime.fromisoformat(cur["time"])
 day = bool(cur.get("is_day", 1))
@@ -83,62 +90,57 @@ sc = scene(kind, cur["weather_code"], cur["temperature_2m"], cur.get("wind_speed
 clip_kind = f"{sc}/{'день' if day else 'ночь'}"
 cid = pick(sc, day, now)
 
-# ближайшие 12 часов с шагом в 2 часа
+# 5 точек с шагом 3 часа и вероятность осадков
 hrs = []
 for i, ts in enumerate(d["hourly"]["time"]):
     tt = datetime.datetime.fromisoformat(ts)
-    if tt > now and (tt - now).total_seconds() <= 12 * 3600 and tt.hour % 2 == 0:
-        hrs.append((f"{tt.hour:02d}", wmo(d["hourly"]["weather_code"][i], bool(d["hourly"]["is_day"][i]))[0], d["hourly"]["temperature_2m"][i]))
+    if tt > now and tt.hour % 3 == 0 and len(hrs) < 5:
+        hrs.append((f"{tt.hour:02d}", wmo(d["hourly"]["weather_code"][i], bool(d["hourly"]["is_day"][i]))[0],
+                    d["hourly"]["temperature_2m"][i], d["hourly"]["precipitation_probability"][i]))
 days = []
 for i in range(1, 4):
     dd = datetime.date.fromisoformat(d["daily"]["time"][i])
-    days.append((f"{WDS[dd.weekday()]}, {dd.day}", wmo(d["daily"]["weather_code"][i])[0], d["daily"]["temperature_2m_min"][i], d["daily"]["temperature_2m_max"][i]))
+    days.append((f"{WDS[dd.weekday()]}, {dd.day}", wmo(d["daily"]["weather_code"][i])[0],
+                 d["daily"]["temperature_2m_min"][i], d["daily"]["temperature_2m_max"][i]))
 
-hrs_html = "".join(f'<li><span class="k">{h}</span>{icon(n,34)}<span class="v">{tm(v)}</span></li>' for h, n, v in hrs[:6])
-days_html = "".join(f'<li><span class="k">{w}</span>{icon(n,30)}<span class="v">{tm(lo)}<i></i>{tm(hi)}</span></li>' for w, n, lo, hi in days)
+hrs_html = "".join(f'<li><span class="k">{h}</span>{icon(n,64)}<span class="v">{tm(v)}</span><span class="p">{p or 0}%</span></li>'
+                   for h, n, v, p in hrs)
+days_html = "".join(f'<li><span class="k">{w}</span>{icon(n,64)}<span class="v">{tm(lo)}<i></i>{tm(hi)}</span></li>' for w, n, lo, hi in days)
 
-FONT = next((p for p in ["/usr/share/fonts/opentype/inter/InterVariable.ttf", "/usr/share/fonts/truetype/inter/Inter-Regular.ttf",
-                         str(HERE / "fonts" / "InterVariable.ttf")] if pathlib.Path(p).exists()), None)
-font_face = f"@font-face{{font-family:'Inter';src:url('file://{FONT}');font-weight:100 900}}" if FONT else ""
+FONT = HERE / "Commissioner.ttf"   # SIL OFL, кириллица, наклон осью slnt
+font_face = f"@font-face{{font-family:'Commissioner';src:url('{FONT.as_uri()}');font-weight:100 900;font-style:oblique 0deg 12deg}}"
 
+# Сетка совпадает с рядом Projectivy: поля 112 px, карточки 208 px через 40 px (шаг 248).
+# Температура — над карточками 1–2, «Сегодня» — над 3–5, «Дальше» — над 6–7.
 html = f"""<!doctype html><html><head><meta charset="utf-8"><style>
 {font_face}
 html,body{{margin:0;width:{W}px;height:{H}px;background:transparent;overflow:hidden}}
-body{{font-family:'Inter','SF Pro Display','Helvetica Neue',Arial,sans-serif;color:#fff;
-  font-feature-settings:'tnum' 1,'cv11' 1;-webkit-font-smoothing:antialiased}}
-/* мягкая подложка: держит контраст текста над любым роликом, не превращаясь в карточку */
-.scrim{{position:absolute;inset:0;
-  background:radial-gradient(90% 75% at 0% 0%,rgba(0,0,0,.42) 0%,rgba(0,0,0,0) 70%),
-             linear-gradient(180deg,rgba(0,0,0,.50) 0%,rgba(0,0,0,.34) 26%,rgba(0,0,0,.06) 48%,rgba(0,0,0,0) 60%)}}
-.w{{position:absolute;left:112px;top:84px;display:grid;grid-template-columns:auto auto auto;column-gap:88px;align-items:start;
-  text-shadow:0 1px 3px rgba(0,0,0,.35),0 4px 24px rgba(0,0,0,.30)}}
-.city{{font-size:44px;font-weight:600;letter-spacing:-.01em}}
-.date{{font-size:24px;font-weight:450;opacity:.82;margin-top:6px}}
-.temp{{font-size:176px;font-weight:200;line-height:.86;letter-spacing:-.04em;margin:26px 0 0 -8px}}
-.cond{{display:flex;align-items:center;gap:12px;font-size:30px;font-weight:500;margin-top:20px}}
-.cond svg{{opacity:.95}}
-.hl{{font-size:24px;font-weight:450;opacity:.82;margin-top:8px}}
-.col{{padding-top:12px}}
-h2{{margin:0 0 18px;font-size:20px;font-weight:600;opacity:.72;letter-spacing:.01em}}
+body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}}
+.scrim{{position:absolute;inset:0;background:
+ radial-gradient(70% 70% at 0% 0%,rgba(0,0,0,.35),rgba(0,0,0,0) 70%),
+ linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.38) 34%,rgba(0,0,0,.22) 55%,rgba(0,0,0,.42) 70%,rgba(0,0,0,.72) 100%)}}
+.b{{position:absolute;text-shadow:0 2px 16px rgba(0,0,0,.35)}}
+.hero{{left:112px;top:84px;width:456px}} .hours{{left:608px;top:180px;width:704px}} .days{{left:1352px;top:180px;width:456px}}
+.city{{font-size:56px;font-weight:650;letter-spacing:-.01em}}
+.date{{font-size:30px;font-weight:450;opacity:.88;margin-top:4px}}
+.temp{{font-size:240px;font-weight:250;line-height:.9;letter-spacing:-.045em;margin-top:18px}}
+.cond{{display:flex;align-items:center;gap:14px;font-size:36px;font-weight:550;margin-top:8px}}
+.hl{{font-size:30px;font-weight:450;opacity:.88;margin-top:6px}}
+h2{{margin:0 0 6px;font-size:28px;font-weight:600;opacity:.85}}
 ul{{list-style:none;margin:0;padding:0}}
-.hrs{{display:flex;gap:34px;padding-top:6px;border-top:1px solid rgba(255,255,255,.28)}}
-.hrs li{{display:flex;flex-direction:column;align-items:center;gap:12px;padding-top:16px}}
-.hrs .k{{font-size:22px;font-weight:500;opacity:.78}} .hrs .v{{font-size:27px;font-weight:550}}
-.dys{{border-top:1px solid rgba(255,255,255,.28)}}
-.dys li{{display:grid;grid-template-columns:96px 40px auto;align-items:center;gap:14px;height:60px;font-size:26px;
-  border-bottom:1px solid rgba(255,255,255,.14)}}
-.dys li:last-child{{border-bottom:0}}
-.dys .k{{font-weight:500;opacity:.85}} .dys .v{{display:flex;align-items:center;gap:12px;font-weight:550}}
-.dys i{{display:inline-block;width:64px;height:5px;border-radius:3px;background:linear-gradient(90deg,#9fd6ff,#ffe08a)}}
+.hours ul{{display:flex;justify-content:space-between}}
+.hours li{{display:flex;flex-direction:column;align-items:center;gap:6px;width:110px}}
+.k{{font-size:30px;font-weight:500;opacity:.88}} .v{{font-size:36px;font-weight:600}} .p{{font-size:26px;opacity:.75;color:#bfe0ff}}
+.days li{{display:grid;grid-template-columns:120px 64px 1fr;align-items:center;height:76px}}
+.days .v{{display:flex;align-items:center;justify-content:flex-end;gap:14px;font-size:34px}}
+.days i{{display:inline-block;width:70px;height:6px;border-radius:3px;background:#f2c879}}
 </style></head><body><div class="scrim"></div>
-<div class="w">
- <div><div class="city">Москва</div><div class="date">{WD[now.weekday()].capitalize()}, {now.day} {MONTHS[now.month-1]}</div>
-  <div class="temp">{tm(cur['temperature_2m'])}</div>
-  <div class="cond">{icon(ic,34)}{desc}</div>
-  <div class="hl">Макс. {tm(d['daily']['temperature_2m_max'][0])}  ·  мин. {tm(d['daily']['temperature_2m_min'][0])}</div></div>
- <div class="col"><h2>Ближайшие часы</h2><ul class="hrs">{hrs_html}</ul></div>
- <div class="col"><h2>Ближайшие дни</h2><ul class="dys">{days_html}</ul></div>
-</div></body></html>"""
+<div class="b hero"><div class="city">Москва</div><div class="date">{WD[now.weekday()].capitalize()}, {now.day} {MONTHS[now.month-1]}</div>
+ <div class="temp">{tm(cur['temperature_2m'])}</div><div class="cond">{icon(ic,80)}{desc}</div>
+ <div class="hl">Макс. {tm(d['daily']['temperature_2m_max'][0])} · мин. {tm(d['daily']['temperature_2m_min'][0])}</div></div>
+<div class="b hours"><h2>Сегодня</h2><ul>{hrs_html}</ul></div>
+<div class="b days"><h2>Дальше</h2><ul>{days_html}</ul></div>
+</body></html>"""
 page = OUT / "overlay.html"; page.write_text(html, encoding="utf-8")
 
 from playwright.sync_api import sync_playwright
