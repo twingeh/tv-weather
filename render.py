@@ -7,7 +7,7 @@
 """
 import json, re, sys, math, random, pathlib, datetime, subprocess, urllib.request
 
-OUT = pathlib.Path(sys.argv[1]); OUT.mkdir(parents=True, exist_ok=True)
+OUT = pathlib.Path(sys.argv[1]).resolve(); OUT.mkdir(parents=True, exist_ok=True)
 PREVIEW = "--preview" in sys.argv
 HERE = pathlib.Path(__file__).parent
 W, H, FPS, SECONDS = 1920, 1080, 25, 8
