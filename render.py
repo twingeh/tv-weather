@@ -147,9 +147,12 @@ subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-i", str(
 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "2", "-i", str(OUT / "wall.mp4"), "-frames:v", "1", str(OUT / "wall.png")], check=True)
 
 stamp = cur["time"].replace(":", "").replace("-", "")
+# Overflight узнаёт видео по окончанию ссылки: дата — в имени файла, не в ?query
+import shutil
+shutil.copy(OUT / "wall.mp4", OUT / f"wall_{stamp}.mp4")
 (OUT / "videos.json").write_text(json.dumps([{
-    "location": "Москва", "title": f"{desc}, {tm(cur['temperature_2m'])}", "author": "Mixkit · Open-Meteo",
-    "url_img": f"{BASE}wall.png?v={stamp}", "url_1080p": f"{BASE}wall.mp4?v={stamp}"}], ensure_ascii=False), encoding="utf-8")
+    "location": "Москва", "title": f"{desc}, {tm(cur['temperature_2m'])}",
+    "url_1080p": f"{BASE}wall_{stamp}.mp4"}], ensure_ascii=False, indent=2), encoding="utf-8")
 (OUT / "index.html").write_text('<!doctype html><meta charset="utf-8"><title>tv-weather</title>'
     f'<p>Обновлено: {cur["time"]} (Москва), {desc}. <a href="wall.mp4">wall.mp4</a> · <a href="videos.json">videos.json</a></p>', encoding="utf-8")
 print("ok", kind, clip_kind, cur["temperature_2m"])
