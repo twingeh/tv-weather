@@ -103,9 +103,9 @@ for i in range(1, 4):
     days.append((f"{WDS[dd.weekday()]}, {dd.day}", wmo(d["daily"]["weather_code"][i])[0],
                  d["daily"]["temperature_2m_min"][i], d["daily"]["temperature_2m_max"][i]))
 
-hrs_html = "".join(f'<li><span class="k">{h}</span>{icon(n,64)}<span class="v">{tm(v)}</span><span class="p">{p or 0}%</span></li>'
+hrs_html = "".join(f'<li><span class="k">{h}</span>{icon(n,52)}<span class="v">{tm(v)}</span><span class="p">{p or 0}%</span></li>'
                    for h, n, v, p in hrs)
-days_html = "".join(f'<li><span class="k">{w}</span>{icon(n,64)}<span class="v">{tm(lo)}<i></i>{tm(hi)}</span></li>' for w, n, lo, hi in days)
+days_html = "".join(f'<li><span class="k">{w}</span>{icon(n,52)}<span class="v">{tm(lo)}<i></i>{tm(hi)}</span></li>' for w, n, lo, hi in days)
 
 FONT = HERE / "Commissioner.ttf"   # SIL OFL, кириллица, наклон осью slnt
 font_face = f"@font-face{{font-family:'Commissioner';src:url('{FONT.as_uri()}');font-weight:100 900;font-style:oblique 0deg 12deg}}"
@@ -118,7 +118,7 @@ html,body{{margin:0;width:{W}px;height:{H}px;background:transparent;overflow:hid
 body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}}
 .scrim{{position:absolute;inset:0;background:
  radial-gradient(70% 70% at 0% 0%,rgba(0,0,0,.35),rgba(0,0,0,0) 70%),
- linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.38) 34%,rgba(0,0,0,.22) 55%,rgba(0,0,0,.42) 70%,rgba(0,0,0,.72) 100%)}}
+ linear-gradient(180deg,rgba(0,0,0,.64) 0%,rgba(0,0,0,.46) 34%,rgba(0,0,0,.30) 55%,rgba(0,0,0,.48) 70%,rgba(0,0,0,.74) 100%)}}
 .b{{position:absolute;text-shadow:0 2px 16px rgba(0,0,0,.35)}}
 .hero{{left:112px;top:84px;width:456px}} .hours{{left:608px;top:180px;width:704px}} .days{{left:1352px;top:180px;width:456px}}
 .city{{font-size:56px;font-weight:650;letter-spacing:-.01em}}
@@ -126,14 +126,14 @@ body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;
 .temp{{font-size:240px;font-weight:250;line-height:.9;letter-spacing:-.045em;margin-top:18px}}
 .cond{{display:flex;align-items:center;gap:14px;font-size:36px;font-weight:550;margin-top:8px}}
 .hl{{font-size:30px;font-weight:450;opacity:.88;margin-top:6px}}
-h2{{margin:0 0 6px;font-size:28px;font-weight:600;opacity:.85}}
+h2{{margin:0 0 4px;font-size:22px;font-weight:600;opacity:.8}}
 ul{{list-style:none;margin:0;padding:0}}
-.hours ul{{display:flex;justify-content:space-between}}
-.hours li{{display:flex;flex-direction:column;align-items:center;gap:6px;width:110px}}
-.k{{font-size:30px;font-weight:500;opacity:.88}} .v{{font-size:36px;font-weight:600}} .p{{font-size:26px;opacity:.75;color:#bfe0ff}}
-.days li{{display:grid;grid-template-columns:120px 64px 1fr;align-items:center;height:76px}}
-.days .v{{display:flex;align-items:center;justify-content:flex-end;gap:14px;font-size:34px}}
-.days i{{display:inline-block;width:70px;height:6px;border-radius:3px;background:#f2c879}}
+.hours ul{{display:flex;gap:20px}}
+.hours li{{display:flex;flex-direction:column;align-items:center;gap:4px;width:96px}}
+.k{{font-size:24px;font-weight:500;opacity:.88}} .v{{font-size:30px;font-weight:600}} .p{{font-size:21px;opacity:.8;color:#bfe0ff}}
+.days li{{display:grid;grid-template-columns:100px 52px 1fr;align-items:center;height:62px}}
+.days .v{{display:flex;align-items:center;gap:12px;font-size:28px;margin-left:18px}}
+.days i{{display:inline-block;width:60px;height:5px;border-radius:3px;background:#f2c879}}
 </style></head><body><div class="scrim"></div>
 <div class="b hero"><div class="city">Москва</div><div class="date">{WD[now.weekday()].capitalize()}, {now.day} {MONTHS[now.month-1]}</div>
  <div class="temp">{tm(cur['temperature_2m'])}</div><div class="cond">{icon(ic,80)}{desc}</div>
@@ -143,11 +143,21 @@ ul{{list-style:none;margin:0;padding:0}}
 </body></html>"""
 page = OUT / "overlay.html"; page.write_text(html, encoding="utf-8")
 
+P, FPS = 6, 25                      # период анимации иконок, кадров в секунду
+FR = HERE / ".frames"                # кадры слоя: вне папки сайта
 from playwright.sync_api import sync_playwright
 with sync_playwright() as pw:
     b = pw.chromium.launch(**({"channel": "chrome"} if "--chrome" in sys.argv else {}))
     pg = b.new_page(viewport={"width": W, "height": H}); pg.goto(page.as_uri()); pg.wait_for_timeout(600)
     pg.screenshot(path=str(OUT / "overlay.png"), omit_background=True)
+    if "--overlay" not in sys.argv:
+        # Иконки Meteocons анимированы через SMIL, общий период 6 с (1, 2, 3 и 6 с).
+        # Снимаем 150 кадров по 1/25 с, останавливая анимацию на нужном моменте.
+        FR.mkdir(exist_ok=True)
+        for f in FR.glob("*.png"): f.unlink()
+        for i in range(P * FPS):
+            pg.evaluate("t => document.querySelectorAll('svg').forEach(s => { s.pauseAnimations(); s.setCurrentTime(t); })", i / FPS)
+            pg.screenshot(path=str(FR / f"{i:03d}.png"), omit_background=True)
     b.close()
 if "--overlay" in sys.argv:
     print("overlay", kind, clip_kind); sys.exit()
@@ -163,13 +173,14 @@ if not src.exists():
 
 dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(src)],
                            capture_output=True, text=True, check=True).stdout.strip())
-L = min(dur, 20.0)          # длина петли
 X = 1.0                     # перекрёстная склейка конца с началом — шва не видно
+k = max(1, int((min(dur, 20.0) - X) // P))
+L = k * P + X               # итоговая петля L−X = k·6 с — целое число периодов иконок
 fc = (f"[0:v]trim=0:{L},setpts=PTS-STARTPTS,scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=25,format=yuv420p,split[a][b];"
       f"[a]trim={X}:{L},setpts=PTS-STARTPTS[main];[b]trim=0:{X},setpts=PTS-STARTPTS[head];"
       f"[main][head]xfade=transition=fade:duration={X}:offset={L-2*X}[loop];"
-      f"[loop][1:v]overlay=0:0:format=auto,format=yuv420p[v]")
-subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-i", str(OUT / "overlay.png"), "-filter_complex", fc,
+      f"[loop][1:v]overlay=0:0:format=auto:shortest=1,format=yuv420p[v]")
+subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-stream_loop", "-1", "-framerate", str(FPS), "-i", str(FR / "%03d.png"), "-filter_complex", fc,
                 "-map", "[v]", "-an", "-c:v", "libx264", "-profile:v", "high", "-crf", "21", "-preset", "medium",
                 "-movflags", "+faststart", str(OUT / "wall.mp4")], check=True)
 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "2", "-i", str(OUT / "wall.mp4"), "-frames:v", "1", str(OUT / "wall.png")], check=True)
