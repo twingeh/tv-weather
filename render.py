@@ -82,6 +82,7 @@ def icon(name, size):
 def t(v):
     r = round(v); return "0°" if r == 0 else f"{r}°"
 def tm(v): return t(v).replace("-", "−")   # минус — типографский
+def th(v): return '<span class="n">' + tm(v)[:-1] + '<span class="dg">°</span></span>'   # градус тонкий и меньше, как на крупной цифре
 
 cur = d["current"]; now = datetime.datetime.fromisoformat(cur["time"])
 day = bool(cur.get("is_day", 1))
@@ -103,15 +104,15 @@ for i in range(1, 4):
     days.append((f"{WDS[dd.weekday()]}, {dd.day}", wmo(d["daily"]["weather_code"][i])[0],
                  d["daily"]["temperature_2m_min"][i], d["daily"]["temperature_2m_max"][i]))
 
-hrs_html = "".join(f'<li><span class="k">{h}</span>{icon(n,52)}<span class="v">{tm(v)}</span><span class="p">{p or 0}%</span></li>'
+hrs_html = "".join(f'<li><span class="k">{h}</span>{icon(n,64)}<span class="v">{th(v)}</span><span class="p">{p or 0}%</span></li>'
                    for h, n, v, p in hrs)
-days_html = "".join(f'<li><span class="k">{w}</span>{icon(n,52)}<span class="v">{tm(lo)}<i></i>{tm(hi)}</span></li>' for w, n, lo, hi in days)
+days_html = "".join(f'<li><span class="k">{w}</span>{icon(n,60)}<span class="v">{th(lo)}<i></i>{th(hi)}</span></li>' for w, n, lo, hi in days)
 
 FONT = HERE / "Commissioner.ttf"   # SIL OFL, кириллица, наклон осью slnt
 font_face = f"@font-face{{font-family:'Commissioner';src:url('{FONT.as_uri()}');font-weight:100 900;font-style:oblique 0deg 12deg}}"
 
-# Сетка совпадает с рядом Projectivy: поля 112 px, карточки 208 px через 40 px (шаг 248).
-# Температура — над карточками 1–2, «Сегодня» — над 3–5, «Дальше» — над 6–7.
+# Сетка совпадает с рядом Projectivy на телевизоре: карточки 212 px с шагом 254, первая с x=72.
+# Температура — над карточками 1–2, «Сегодня» — над 3–4, «Дальше» — над 5–6.
 html = f"""<!doctype html><html><head><meta charset="utf-8"><style>
 {font_face}
 html,body{{margin:0;width:{W}px;height:{H}px;background:transparent;overflow:hidden}}
@@ -119,26 +120,30 @@ body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;
 .scrim{{position:absolute;inset:0;background:
  radial-gradient(70% 70% at 0% 0%,rgba(0,0,0,.35),rgba(0,0,0,0) 70%),
  linear-gradient(180deg,rgba(0,0,0,.64) 0%,rgba(0,0,0,.46) 34%,rgba(0,0,0,.30) 55%,rgba(0,0,0,.48) 70%,rgba(0,0,0,.74) 100%)}}
-.b{{position:absolute;text-shadow:0 2px 16px rgba(0,0,0,.35)}}
-.hero{{left:112px;top:84px;width:456px}} .hours{{left:608px;top:180px;width:704px}} .days{{left:1352px;top:180px;width:456px}}
+.b{{position:absolute;text-shadow:0 1px 2px rgba(0,0,0,.45),0 2px 16px rgba(0,0,0,.5)}}
+.hero{{left:72px;top:84px;width:466px}} .hours{{left:500px;top:150px;height:292px;padding:22px 30px 18px}} .days{{left:1104px;top:150px;height:292px;padding:22px 30px 10px}}
+/* стеклянные плашки, как у карточек приложений */
+.hours,.days{{box-sizing:border-box;background:rgba(255,255,255,.11);border:1.5px solid rgba(255,255,255,.26);border-radius:40px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 30px rgba(0,0,0,.18)}}
 .city{{font-size:56px;font-weight:650;letter-spacing:-.01em}}
 .date{{font-size:30px;font-weight:450;opacity:.88;margin-top:4px}}
-.temp{{font-size:240px;font-weight:250;line-height:.9;letter-spacing:-.045em;margin-top:18px}}
-.temp .deg{{font-size:.5em;vertical-align:.62em;margin-left:.04em;letter-spacing:0}}
+.temp{{font-size:240px;font-weight:250;line-height:.9;letter-spacing:-.045em;margin:18px 0 0 -6px}}
+.cond svg{{margin-left:-8px}}
+.dg{{font-weight:300;font-size:.72em;vertical-align:.32em;margin-left:.02em}}
+.temp .deg{{font-size:.5em;vertical-align:.68em;margin-left:.04em;letter-spacing:0;font-weight:250}}
 .cond{{display:flex;align-items:center;gap:14px;font-size:36px;font-weight:550;margin-top:8px}}
 .hl{{font-size:30px;font-weight:450;opacity:.88;margin-top:6px}}
-h2{{margin:0 0 4px;font-size:22px;font-weight:600;opacity:.8}}
+h2{{margin:0 0 10px;font-size:26px;font-weight:600;opacity:.92;letter-spacing:.02em}}
 ul{{list-style:none;margin:0;padding:0}}
-.hours ul{{display:flex;gap:20px}}
-.hours li{{display:flex;flex-direction:column;align-items:center;gap:4px;width:96px}}
-.k{{font-size:24px;font-weight:500;opacity:.88}} .v{{font-size:30px;font-weight:600}} .p{{font-size:21px;opacity:.8;color:#bfe0ff}}
-.days li{{display:grid;grid-template-columns:100px 52px 1fr;align-items:center;height:62px}}
-.days .v{{display:flex;align-items:center;gap:12px;font-size:28px;margin-left:18px}}
+.hours ul{{display:flex;gap:18px}}
+.hours li{{display:flex;flex-direction:column;align-items:center;gap:5px;width:92px}}
+.k{{font-size:28px;font-weight:500;opacity:.92}} .v{{font-size:36px;font-weight:600}} .p{{font-size:26px;color:#dff0ff}}
+.days li{{display:grid;grid-template-columns:112px 62px 1fr;align-items:center;height:72px}}
+.days .v{{display:flex;align-items:center;gap:14px;font-size:34px;margin-left:16px}}
 .days i{{display:inline-block;width:60px;height:5px;border-radius:3px;background:#f2c879}}
 </style></head><body><div class="scrim"></div>
 <div class="b hero"><div class="city">Москва</div><div class="date">{WD[now.weekday()].capitalize()}, {now.day} {MONTHS[now.month-1]}</div>
  <div class="temp">{tm(cur['temperature_2m'])[:-1]}<span class="deg">°</span></div><div class="cond">{icon(ic,80)}{desc}</div>
- <div class="hl">Макс. {tm(d['daily']['temperature_2m_max'][0])} · мин. {tm(d['daily']['temperature_2m_min'][0])}</div></div>
+ <div class="hl">Макс. {th(d['daily']['temperature_2m_max'][0])} · мин. {th(d['daily']['temperature_2m_min'][0])}</div></div>
 <div class="b hours"><h2>Сегодня</h2><ul>{hrs_html}</ul></div>
 <div class="b days"><h2>Дальше</h2><ul>{days_html}</ul></div>
 </body></html>"""
