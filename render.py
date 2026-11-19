@@ -91,7 +91,7 @@ for i, ts in enumerate(d["hourly"]["time"]):
 days = []
 for i in range(1, 4):
     dd = datetime.date.fromisoformat(d["daily"]["time"][i])
-    days.append((WDS[dd.weekday()], wmo(d["daily"]["weather_code"][i])[0], d["daily"]["temperature_2m_min"][i], d["daily"]["temperature_2m_max"][i]))
+    days.append((f"{WDS[dd.weekday()]}, {dd.day}", wmo(d["daily"]["weather_code"][i])[0], d["daily"]["temperature_2m_min"][i], d["daily"]["temperature_2m_max"][i]))
 
 hrs_html = "".join(f'<li><span class="k">{h}</span>{icon(n,34)}<span class="v">{tm(v)}</span></li>' for h, n, v in hrs[:6])
 days_html = "".join(f'<li><span class="k">{w}</span>{icon(n,30)}<span class="v">{tm(lo)}<i></i>{tm(hi)}</span></li>' for w, n, lo, hi in days)
@@ -124,7 +124,7 @@ ul{{list-style:none;margin:0;padding:0}}
 .hrs li{{display:flex;flex-direction:column;align-items:center;gap:12px;padding-top:16px}}
 .hrs .k{{font-size:22px;font-weight:500;opacity:.78}} .hrs .v{{font-size:27px;font-weight:550}}
 .dys{{border-top:1px solid rgba(255,255,255,.28)}}
-.dys li{{display:grid;grid-template-columns:52px 40px auto;align-items:center;gap:14px;height:60px;font-size:26px;
+.dys li{{display:grid;grid-template-columns:96px 40px auto;align-items:center;gap:14px;height:60px;font-size:26px;
   border-bottom:1px solid rgba(255,255,255,.14)}}
 .dys li:last-child{{border-bottom:0}}
 .dys .k{{font-weight:500;opacity:.85}} .dys .v{{display:flex;align-items:center;gap:12px;font-weight:550}}
@@ -136,7 +136,7 @@ ul{{list-style:none;margin:0;padding:0}}
   <div class="cond">{icon(ic,34)}{desc}</div>
   <div class="hl">Макс. {tm(d['daily']['temperature_2m_max'][0])}  ·  мин. {tm(d['daily']['temperature_2m_min'][0])}</div></div>
  <div class="col"><h2>Ближайшие часы</h2><ul class="hrs">{hrs_html}</ul></div>
- <div class="col"><h2>3 дня</h2><ul class="dys">{days_html}</ul></div>
+ <div class="col"><h2>Ближайшие дни</h2><ul class="dys">{days_html}</ul></div>
 </div></body></html>"""
 page = OUT / "overlay.html"; page.write_text(html, encoding="utf-8")
 
