@@ -29,10 +29,15 @@ jobs:
           sudo apt-get install -y -qq ffmpeg fonts-inter
           pip install -q playwright==1.48.0
           python -m playwright install --with-deps chromium
+      - name: Clip cache
+        uses: actions/cache@v4
+        with:
+          path: .clips
+          key: mixkit-clips-v1
       - name: Render
         run: python render.py site
       - name: Drop frames
-        run: rm -rf site/frames site/page.html
+        run: rm -f site/overlay.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
