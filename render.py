@@ -188,7 +188,13 @@ fc = (f"[0:v]trim=0:{L},setpts=PTS-STARTPTS,scale={W}:{H}:force_original_aspect_
       f"[loop][1:v]overlay=0:0:format=auto:shortest=1,format=yuv420p[v]")
 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-stream_loop", "-1", "-framerate", str(FPS), "-i", str(FR / "%03d.png"), "-filter_complex", fc,
                 "-map", "[v]", "-an", "-c:v", "libx264", "-profile:v", "high", "-crf", "21", "-preset", "medium",
-                "-movflags", "+faststart", str(OUT / "wall.mp4")], check=True)
+                "-movflags", "+faststart", str(OUT / "loop.mp4")], check=True)
+# Петля внутри файла бесшовная, а шов виден, когда лаунчер перезапускает ролик.
+# Склеиваем петлю саму с собой до ~1 минуты: перезапуск — раз в минуту, а не каждые 18 с.
+reps = max(1, round(60 / (L - X)))
+subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-stream_loop", str(reps - 1), "-i", str(OUT / "loop.mp4"),
+                "-c", "copy", "-movflags", "+faststart", str(OUT / "wall.mp4")], check=True)
+(OUT / "loop.mp4").unlink()
 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "2", "-i", str(OUT / "wall.mp4"), "-frames:v", "1", str(OUT / "wall.png")], check=True)
 
 stamp = cur["time"].replace(":", "").replace("-", "")
