@@ -49,7 +49,7 @@ def pick(sc, day, now):
 
 URL = ("https://api.open-meteo.com/v1/forecast?latitude=55.7558&longitude=37.6173"
        "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
-       "&hourly=temperature_2m,weather_code,is_day,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min"
+       "&hourly=temperature_2m,weather_code,is_day,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
        "&forecast_days=4&timezone=Europe/Moscow&wind_speed_unit=ms")
 d = json.loads(urllib.request.urlopen(URL, timeout=30).read())
 
@@ -85,11 +85,21 @@ def tm(v): return t(v).replace("-", "−")   # минус — типографс
 def th(v): return '<span class="n">' + tm(v)[:-1] + '<span class="dg">°</span></span>'   # градус тонкий и меньше, как на крупной цифре
 
 cur = d["current"]; now = datetime.datetime.fromisoformat(cur["time"])
-day = bool(cur.get("is_day", 1))
+# Светло или темно — по рассвету и закату в Москве (Open-Meteo), а не по флагу is_day.
+# Светло — от начала гражданских сумерек (рассвет −40 мин) до их конца (закат +40 мин).
+# В эти первые и последние ~час ролик дневной, но чуть притемнённый.
+sunrise = datetime.datetime.fromisoformat(d["daily"]["sunrise"][0])
+sunset = datetime.datetime.fromisoformat(d["daily"]["sunset"][0])
+M = datetime.timedelta(minutes=1)
+day = sunrise - 40 * M <= now <= sunset + 40 * M
+twilight = day and (now < sunrise + 20 * M or now > sunset - 20 * M)
 ic, desc, kind = wmo(cur["weather_code"], day)
 sc = scene(kind, cur["weather_code"], cur["temperature_2m"], cur.get("wind_speed_10m", 0))
 clip_kind = f"{sc}/{'день' if day else 'ночь'}"
 cid = pick(sc, day, now)
+# Дневная съёмка, которую ставим и ночью (капли на стекле), и любой ролик в сумерках — притемняем.
+DAYLIKE = {"21144", "15404"}
+dim = "eq=brightness=-0.10:gamma=0.85," if (not day and cid in DAYLIKE) else ("eq=brightness=-0.05:gamma=0.93," if twilight else "")
 
 # 5 точек с шагом 3 часа и вероятность осадков
 hrs = []
@@ -182,7 +192,7 @@ dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=d
 X = 1.0                     # перекрёстная склейка конца с началом — шва не видно
 k = max(1, int((min(dur, 20.0) - X) // P))
 L = k * P + X               # итоговая петля L−X = k·6 с — целое число периодов иконок
-fc = (f"[0:v]trim=0:{L},setpts=PTS-STARTPTS,scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=25,format=yuv420p,split[a][b];"
+fc = (f"[0:v]trim=0:{L},setpts=PTS-STARTPTS,scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=25,{dim}format=yuv420p,split[a][b];"
       f"[a]trim={X}:{L},setpts=PTS-STARTPTS[main];[b]trim=0:{X},setpts=PTS-STARTPTS[head];"
       f"[main][head]xfade=transition=fade:duration={X}:offset={L-2*X}[loop];"
       f"[loop][1:v]overlay=0:0:format=auto:shortest=1,format=yuv420p[v]")
