@@ -99,13 +99,14 @@ clip_kind = f"{sc}/{'день' if day else 'ночь'}"
 cid = pick(sc, day, now)
 # Дневная съёмка, которую ставим и ночью (капли на стекле), и любой ролик в сумерках — притемняем.
 DAYLIKE = {"21144", "15404"}
-dim = "eq=brightness=-0.10:gamma=0.85," if (not day and cid in DAYLIKE) else ("eq=brightness=-0.05:gamma=0.93," if twilight else "")
+dim = "eq=brightness=-0.07:gamma=0.9," if (not day and cid in DAYLIKE) else ("eq=brightness=-0.05:gamma=0.93," if twilight else "")
 
 # 5 точек с шагом 3 часа и вероятность осадков
 hrs = []
 for i, ts in enumerate(d["hourly"]["time"]):
     tt = datetime.datetime.fromisoformat(ts)
-    if tt > now and tt.hour % 3 == 0 and len(hrs) < 5:
+    # ролик живёт на экране до ~50 мин (сборка раз в 30 мин + смена фона раз в 15) — час, который успеет пройти, не берём
+    if tt > now + datetime.timedelta(minutes=50) and tt.hour % 3 == 0 and len(hrs) < 5:
         hrs.append((f"{tt.hour:02d}", wmo(d["hourly"]["weather_code"][i], bool(d["hourly"]["is_day"][i]))[0],
                     d["hourly"]["temperature_2m"][i], d["hourly"]["precipitation_probability"][i]))
 days = []
@@ -123,13 +124,17 @@ font_face = f"@font-face{{font-family:'Commissioner';src:url('{FONT.as_uri()}');
 
 # Сетка совпадает с рядом Projectivy на телевизоре: карточки 212 px с шагом 254, первая с x=72.
 # Температура — над карточками 1–2, «Сегодня» — над 3–4, «Дальше» — над 5–6.
+# Днём подложка лёгкая (только чтобы читался текст), ночью — немного темнее.
+SCRIM = ("radial-gradient(70% 70% at 0% 0%,rgba(0,0,0,.22),rgba(0,0,0,0) 70%),"
+         "linear-gradient(180deg,rgba(0,0,0,.36) 0%,rgba(0,0,0,.20) 34%,rgba(0,0,0,.06) 55%,rgba(0,0,0,.16) 70%,rgba(0,0,0,.40) 100%)") if day else \
+        ("radial-gradient(70% 70% at 0% 0%,rgba(0,0,0,.30),rgba(0,0,0,0) 70%),"
+         "linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,.38) 34%,rgba(0,0,0,.24) 55%,rgba(0,0,0,.40) 70%,rgba(0,0,0,.62) 100%)")
 html = f"""<!doctype html><html><head><meta charset="utf-8"><style>
 {font_face}
 html,body{{margin:0;width:{W}px;height:{H}px;background:transparent;overflow:hidden}}
 body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}}
 .scrim{{position:absolute;inset:0;background:
- radial-gradient(70% 70% at 0% 0%,rgba(0,0,0,.35),rgba(0,0,0,0) 70%),
- linear-gradient(180deg,rgba(0,0,0,.64) 0%,rgba(0,0,0,.46) 34%,rgba(0,0,0,.30) 55%,rgba(0,0,0,.48) 70%,rgba(0,0,0,.74) 100%)}}
+ {SCRIM}}}
 .b{{position:absolute;text-shadow:0 1px 2px rgba(0,0,0,.45),0 2px 16px rgba(0,0,0,.5)}}
 .hero{{left:72px;top:84px;width:466px}} .hours{{left:420px;top:150px;height:292px;padding:22px 30px 18px}} .days{{left:1024px;top:150px;height:292px;padding:22px 30px 10px}}
 /* стеклянные плашки, как у карточек приложений */
