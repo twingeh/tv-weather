@@ -105,8 +105,8 @@ dim = "eq=brightness=-0.07:gamma=0.9," if (not day and cid in DAYLIKE) else ("eq
 hrs = []
 for i, ts in enumerate(d["hourly"]["time"]):
     tt = datetime.datetime.fromisoformat(ts)
-    # ролик живёт на экране до ~50 мин (сборка раз в 30 мин + смена фона раз в 15) — час, который успеет пройти, не берём
-    if tt > now + datetime.timedelta(minutes=50) and tt.hour % 3 == 0 and len(hrs) < 5:
+    # ролик живёт на экране до ~90 мин (GitHub запускает сборку раз в час, а не в 30 мин, плюс 15 мин задержки Projectivy) — час, который успеет пройти, не берём
+    if tt > now + datetime.timedelta(minutes=90) and tt.hour % 3 == 0 and len(hrs) < 5:
         hrs.append((f"{tt.hour:02d}", wmo(d["hourly"]["weather_code"][i], bool(d["hourly"]["is_day"][i]))[0],
                     d["hourly"]["temperature_2m"][i], d["hourly"]["precipitation_probability"][i]))
 days = []
@@ -140,7 +140,7 @@ body{{font-family:'Commissioner',sans-serif;font-style:oblique 12deg;color:#fff;
 /* стеклянные плашки, как у карточек приложений */
 .hours,.days{{box-sizing:border-box;background:rgba(255,255,255,.11);border:1.5px solid rgba(255,255,255,.26);border-radius:40px;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 30px rgba(0,0,0,.18)}}
 .city{{font-size:56px;font-weight:650;letter-spacing:-.01em}}
-.date{{font-size:30px;font-weight:450;opacity:.88;margin-top:4px}}
+.date{{font-size:30px;font-weight:450;opacity:.88;margin-top:4px;line-height:1.2}}
 .temp{{font-size:240px;font-weight:250;line-height:.9;letter-spacing:-.045em;margin:18px 0 0 -6px}}
 .cond svg{{margin-left:-8px}}
 .dg{{font-weight:300;font-size:.72em;vertical-align:.32em;margin-left:.02em}}
@@ -156,7 +156,7 @@ ul{{list-style:none;margin:0;padding:0}}
 .days .v{{display:flex;align-items:center;gap:14px;font-size:34px;margin-left:16px}}
 .days i{{display:inline-block;width:60px;height:5px;border-radius:3px;background:#f2c879}}
 </style></head><body><div class="scrim"></div>
-<div class="b hero"><div class="city">Москва</div><div class="date">{WD[now.weekday()].capitalize()}, {now.day} {MONTHS[now.month-1]}</div>
+<div class="b hero"><div class="city">Москва</div><div class="date">{WD[now.weekday()].capitalize()}<br>{now.day} {MONTHS[now.month-1]}</div>
  <div class="temp">{tm(cur['temperature_2m'])[:-1]}<span class="deg">°</span></div><div class="cond">{icon(ic,80)}{desc}</div>
  <div class="hl">Макс. {th(d['daily']['temperature_2m_max'][0])} · мин. {th(d['daily']['temperature_2m_min'][0])}</div></div>
 <div class="b hours"><h2>Сегодня</h2><ul>{hrs_html}</ul></div>
