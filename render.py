@@ -6,7 +6,7 @@
 Погода: Open-Meteo (без ключа). Видео: Mixkit, клипы с Mixkit Stock Video Free License.
 Иконки: Phosphor (MIT). Шрифт: Inter (SIL OFL).
 """
-import json, re, sys, pathlib, datetime, subprocess, urllib.request
+import time, json, re, sys, pathlib, datetime, subprocess, urllib.request
 
 OUT = pathlib.Path(sys.argv[1]).resolve(); OUT.mkdir(parents=True, exist_ok=True)
 HERE = pathlib.Path(__file__).resolve().parent
@@ -51,7 +51,13 @@ URL = ("https://api.open-meteo.com/v1/forecast?latitude=55.7558&longitude=37.617
        "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day"
        "&hourly=temperature_2m,weather_code,is_day,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
        "&forecast_days=4&timezone=Europe/Moscow&wind_speed_unit=ms")
-d = json.loads(urllib.request.urlopen(URL, timeout=30).read())
+for _try in range(5):  # Open-Meteo иногда не отвечает — без повтора сборка падала (23 ноября)
+    try:
+        d = json.loads(urllib.request.urlopen(URL, timeout=30).read()); break
+    except Exception as e:
+        print("open-meteo retry", _try + 1, e); time.sleep(20)
+else:
+    raise SystemExit("open-meteo недоступен")
 
 MONTHS = "января февраля марта апреля мая июня июля августа сентября октября ноября декабря".split()
 WD = "понедельник вторник среда четверг пятница суббота воскресенье".split()
